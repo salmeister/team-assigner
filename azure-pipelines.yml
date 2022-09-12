@@ -14,12 +14,26 @@ variables:
   buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
 
+
+
 steps:
+- task: DownloadSecureFile@1
+  name: secureAppSettings
+  displayName: 'Download App Settings'
+  inputs:
+    secureFile: 'appsettings.json'
+
 - task: NuGetToolInstaller@1
 
 - task: NuGetCommand@2
   inputs:
     restoreSolution: '$(solution)'
+
+- task: CopyFiles@2
+  displayName: Secure App Settings
+  inputs:
+    contents: $(secureAppSettings.secureFilePath)
+    targetFolder: '$(System.DefaultWorkingDirectory)/TeamAssigner'
 
 - task: VSBuild@1
   inputs:
