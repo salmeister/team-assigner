@@ -30,9 +30,10 @@ steps:
     restoreSolution: '$(solution)'
 
 - task: CopyFiles@2
-  displayName: Secure App Settings
+  displayName: Copy Secure App Settings
   inputs:
-    contents: $(secureAppSettings.secureFilePath)
+    sourceFolder: "$(Agent.TempDirectory)"
+    contents: "appsettings.json"
     targetFolder: '$(System.DefaultWorkingDirectory)/TeamAssigner'
 
 - task: VSBuild@1
@@ -42,7 +43,16 @@ steps:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
 
-- task: VSTest@2
-  inputs:
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+  - task: CopyFiles@2
+    displayName: Copy Artifact
+    inputs:
+      contents: '**/bin/$(buildConfiguration)/net6.0'
+      targetFolder: $(Build.ArtifactStagingDirectory)
+      cleanTargetFolder: true
+
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Artifact
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      ArtifactName: 'drop'
+      publishLocation: 'Container'
