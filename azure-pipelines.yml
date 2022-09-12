@@ -46,7 +46,7 @@ steps:
   - task: CopyFiles@2
     displayName: Copy Artifact
     inputs:
-      contents: '**/bin/$(buildConfiguration)/net6.0'
+      contents: "**/bin/$(buildConfiguration)/net6.0"
       targetFolder: $(Build.ArtifactStagingDirectory)
       cleanTargetFolder: true
 
