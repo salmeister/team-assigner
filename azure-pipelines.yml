@@ -34,6 +34,7 @@ steps:
   inputs:
     sourceFolder: "$(Agent.TempDirectory)"
     contents: "appsettings.json"
+    OverWrite: true
     targetFolder: '$(System.DefaultWorkingDirectory)/TeamAssigner'
 
 - task: VSBuild@1
@@ -43,16 +44,14 @@ steps:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
 
-- task: CopyFiles@2
-  displayName: Copy Artifact
+- task: DotNetCoreCLI@2
   inputs:
-    contents: "**/bin/$(buildConfiguration)/net6.0"
-    targetFolder: $(Build.ArtifactStagingDirectory)
-    cleanTargetFolder: true
+    command: publish
+    publishWebProjects: false
+    arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+    zipAfterPublish: false
 
-- task: PublishBuildArtifacts@1
-  displayName: Publish Artifact
+- task: PublishPipelineArtifact@1
   inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'drop'
-    publishLocation: 'Container'
+    targetPath: '$(Build.ArtifactStagingDirectory)' 
+    artifactName: 'drop'
