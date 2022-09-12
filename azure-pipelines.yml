@@ -17,25 +17,12 @@ variables:
 
 
 steps:
-- task: DownloadSecureFile@1
-  name: secureAppSettings
-  displayName: 'Download App Settings'
-  inputs:
-    secureFile: 'appsettings.json'
 
 - task: NuGetToolInstaller@1
 
 - task: NuGetCommand@2
   inputs:
     restoreSolution: '$(solution)'
-
-- task: CopyFiles@2
-  displayName: Copy Secure App Settings
-  inputs:
-    sourceFolder: "$(Agent.TempDirectory)"
-    contents: "appsettings.json"
-    OverWrite: true
-    targetFolder: '$(System.DefaultWorkingDirectory)/TeamAssigner'
 
 - task: VSBuild@1
   inputs:
