@@ -15,7 +15,7 @@ DayOfWeek myFirstDOW = DayOfWeek.Tuesday;
 int week = myCal.GetWeekOfYear(DateTime.Now, myCWR, myFirstDOW) - 36;
 Console.WriteLine($"Week: {week}\n");
 
-if (week < 18)
+if (week < 19)
 {
 
     var config = builder.Build();
