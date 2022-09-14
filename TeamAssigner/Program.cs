@@ -107,6 +107,11 @@ static StringBuilder Randomize(AppSettings appSettings, List<TeamInfo> teams, Li
 
 static void SendEmail(EmailSettings emailSettings, List<PlayerInfo> players, int week, StringBuilder sb)
 {
+    Console.WriteLine($"From Email: {emailSettings.FromEmail}");
+    Console.WriteLine($"Psswd: {emailSettings.Psswd}");
+    Console.WriteLine($"From SMTPServer: {emailSettings.SMTPServer}");
+    Console.WriteLine($"From SMTPPort: {emailSettings.SMTPPort}");
+
     var client = new SmtpClient(emailSettings.SMTPServer, emailSettings.SMTPPort)
     {
         Credentials = new NetworkCredential(emailSettings.FromEmail, emailSettings.Psswd),

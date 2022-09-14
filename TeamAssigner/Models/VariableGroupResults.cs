@@ -1,5 +1,4 @@
-﻿
-namespace TeamAssigner.Models
+﻿namespace TeamAssigner.Models
 {
     using System.Text.Json.Serialization;
 
