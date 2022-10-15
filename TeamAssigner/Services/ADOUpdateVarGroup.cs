@@ -43,8 +43,17 @@
             Console.WriteLine($"Getting Var Group existing values. Making GET call to: {_baseURL}/distributedtask/variablegroups/{_varGroupID}?{apiVer}");
             VariableGroupResults? results = GetDetails();
             results.variables.ByeWeekMarker.value = newValue.ToString();
-            var json = JsonSerializer.Serialize(results);
-            Console.WriteLine($"Updating Bye Marker to {newValue.ToString()}. Making PUI call to: { _baseURL}/ distributedtask / variablegroups /{ _varGroupID}?{ apiVer}");
+
+            VariableGroupUpdate payload = new VariableGroupUpdate
+            {
+                id = _varGroupID,
+                name = results.name,
+                type = "Vsts",
+                variables = results.variables
+            };
+
+            var json = JsonSerializer.Serialize(payload);
+            Console.WriteLine($"Updating Bye Marker to {newValue.ToString()}. Making PUI call to: { _baseURL}/distributedtask/variablegroups/{_varGroupID}?{apiVer}");
             RESTUtil restUtil = new RESTUtil();
             string returnResults = restUtil.Put(_authHeader, varGroupPutURL, json);
         }

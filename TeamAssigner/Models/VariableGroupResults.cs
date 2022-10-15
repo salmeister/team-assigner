@@ -78,21 +78,7 @@
 
     public class Variables
     {
-        [JsonPropertyName("AppSettings.ADOBaseURL")]
-        public AppSettingsADOBaseURL AppSettingsADOBaseURL { get; set; }
-
-        [JsonPropertyName("AppSettings.Token")]
-        public AppSettingsToken AppSettingsToken { get; set; }
-
-        [JsonPropertyName("AppSettings.VariableGroupIDToModify")]
-        public AppSettingsVariableGroupIDToModify AppSettingsVariableGroupIDToModify { get; set; }
         public ByeWeekMarker ByeWeekMarker { get; set; }
-
-        [JsonPropertyName("EmailSettings.fromEmail")]
-        public EmailSettingsFromEmail EmailSettingsFromEmail { get; set; }
-
-        [JsonPropertyName("EmailSettings.psswd")]
-        public EmailSettingsPsswd EmailSettingsPsswd { get; set; }
     }
 
 
