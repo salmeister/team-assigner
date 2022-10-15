@@ -31,6 +31,7 @@
         {
             RESTUtil restUtil = new RESTUtil();
             var varGroupGetURL = $"{_baseURL}/distributedtask/variablegroups?groupID={_varGroupID}&{apiVer}";
+            Console.WriteLine($"Checking Bye Marker. Making GET call to:  {_baseURL}/distributedtask/variablegroups?groupID={_varGroupID}&{apiVer}");
             var json = restUtil.Get(_authHeader, varGroupGetURL);
             VariableGroupResults? results = JsonSerializer.Deserialize<VariableGroupResults>(json);
             return results;
@@ -39,11 +40,11 @@
         public void SetNewValueOfByeWeekMarker(int newValue)
         {
             var varGroupPutURL = $"{_baseURL}/distributedtask/variablegroups/{_varGroupID}?{apiVer}";
-
+            Console.WriteLine($"Getting Var Group existing values. Making GET call to: {_baseURL}/distributedtask/variablegroups/{_varGroupID}?{apiVer}");
             VariableGroupResults? results = GetDetails();
             results.variables.ByeWeekMarker.value = newValue.ToString();
             var json = JsonSerializer.Serialize(results);
-
+            Console.WriteLine($"Updating Bye Marker to {newValue.ToString()}. Making PUI call to: { _baseURL}/ distributedtask / variablegroups /{ _varGroupID}?{ apiVer}");
             RESTUtil restUtil = new RESTUtil();
             string returnResults = restUtil.Put(_authHeader, varGroupPutURL, json);
         }
