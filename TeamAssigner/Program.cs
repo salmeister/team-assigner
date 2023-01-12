@@ -38,7 +38,17 @@ static int GetNFLWeek(int offset)
     Calendar myCal = myCI.Calendar;
     CalendarWeekRule myCWR = myCI.DateTimeFormat.CalendarWeekRule;
     DayOfWeek myFirstDOW = DayOfWeek.Tuesday;
-    int week = myCal.GetWeekOfYear(DateTime.Now, myCWR, myFirstDOW) - offset;
+    int weekOfYear = myCal.GetWeekOfYear(DateTime.Now, myCWR, myFirstDOW);
+    int nflWeek = 0;
+    if (weekOfYear < 27){
+        int lastYear = DateTime.Now.Year - 1;
+        DateTime lastNYE = new DateTime(lastYear, 12, 31);
+        int weeksInLastYear = myCal.GetWeekOfYear(lastNYE, myCWR, myFirstDOW);
+        nflWeek = (weeksInLastYear - offset) + weekOfYear;
+    }
+    else {
+        nflWeek = weekOfYear - offset;
+    }
     Console.WriteLine($"Week: {week}\n");
     return week;
 }
