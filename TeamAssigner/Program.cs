@@ -11,9 +11,10 @@ AppSettings appSettings;
 EmailSettings emailSettings;
 List<TeamInfo> teams;
 List<PlayerInfo> players;
+int week;
 
 Startup(args, out appSettings, out emailSettings, out teams, out players);
-int week = GetNFLWeek(appSettings.WeekOffset);
+GetNFLWeek(out week, appSettings.WeekOffset);
 
 if (week < 19)
 {
@@ -32,25 +33,23 @@ static void Startup(string[] args, out AppSettings appSettings, out EmailSetting
     players = config.GetRequiredSection("Players").Get<List<PlayerInfo>>();
 }
 
-static int GetNFLWeek(int offset)
+static void GetNFLWeek(out int week, int offset)
 {
     CultureInfo myCI = new CultureInfo("en-US");
     Calendar myCal = myCI.Calendar;
     CalendarWeekRule myCWR = myCI.DateTimeFormat.CalendarWeekRule;
     DayOfWeek myFirstDOW = DayOfWeek.Tuesday;
     int weekOfYear = myCal.GetWeekOfYear(DateTime.Now, myCWR, myFirstDOW);
-    int nflWeek = 0;
     if (weekOfYear < 27){
         int lastYear = DateTime.Now.Year - 1;
         DateTime lastNYE = new DateTime(lastYear, 12, 31);
         int weeksInLastYear = myCal.GetWeekOfYear(lastNYE, myCWR, myFirstDOW);
-        nflWeek = (weeksInLastYear - offset) + weekOfYear;
+        week = (weeksInLastYear - offset) + weekOfYear;
     }
     else {
-        nflWeek = weekOfYear - offset;
+        week = weekOfYear - offset;
     }
     Console.WriteLine($"Week: {week}\n");
-    return week;
 }
 
 static StringBuilder Randomize(AppSettings appSettings, List<TeamInfo> teams, List<PlayerInfo> players, int currentWeek)
