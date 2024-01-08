@@ -1,4 +1,4 @@
-﻿namespace TeamAssigner.Utils
+﻿namespace TeamAssigner.Services
 {
     using System;
     using System.Collections.Specialized;

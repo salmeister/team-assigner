@@ -1,15 +1,12 @@
 ﻿
-using System.Globalization;
 using System.Net.Mail;
 using System.Net;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using TeamAssigner.Models;
 using TeamAssigner.Services;
-using TeamAssigner.Utils;
 using System.Collections.Specialized;
 using System.Text.Json;
-using System.Diagnostics;
 
 AppSettings appSettings;
 EmailSettings emailSettings;
@@ -44,7 +41,7 @@ static void GetNFLWeek(out int week, string nflYear, string weekOverride)
         string seasonJson = restUtil.Get(new NameValueCollection(), $"http://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{nflYear}/types/2/weeks");
         seasonJson = seasonJson.Replace("$ref", "reference");
         NFLObject seasonResults = JsonSerializer.Deserialize<NFLObject>(seasonJson);
-        week = seasonResults.count + 1;
+        week = seasonResults.count;
     }
     else
     {
