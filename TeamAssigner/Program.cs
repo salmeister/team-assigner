@@ -6,6 +6,9 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using TeamAssigner.Models;
 using TeamAssigner.Services;
+using TeamAssigner.Utils;
+using System.Collections.Specialized;
+using System.Text.Json;
 
 AppSettings appSettings;
 EmailSettings emailSettings;
@@ -14,7 +17,7 @@ List<PlayerInfo> players;
 int week;
 
 Startup(args, out appSettings, out emailSettings, out teams, out players);
-GetNFLWeek(out week, appSettings.WeekOffset);
+GetNFLWeek(out week, appSettings.NFLSeason, appSettings.WeekOverride);
 
 if (week < 19)
 {
@@ -33,22 +36,25 @@ static void Startup(string[] args, out AppSettings appSettings, out EmailSetting
     players = config.GetRequiredSection("Players").Get<List<PlayerInfo>>();
 }
 
-static void GetNFLWeek(out int week, int offset)
+static void GetNFLWeek(out int week, string nflYear, string weekOverride)
 {
-    CultureInfo myCI = new CultureInfo("en-US");
-    Calendar myCal = myCI.Calendar;
-    CalendarWeekRule myCWR = myCI.DateTimeFormat.CalendarWeekRule;
-    DayOfWeek myFirstDOW = DayOfWeek.Tuesday;
-    int weekOfYear = myCal.GetWeekOfYear(DateTime.Now, myCWR, myFirstDOW);
-    if (weekOfYear < 27){
-        int lastYear = DateTime.Now.Year - 1;
-        DateTime lastNYE = new DateTime(lastYear, 12, 31);
-        int weeksInLastYear = myCal.GetWeekOfYear(lastNYE, myCWR, myFirstDOW);
-        week = (weeksInLastYear - offset) + weekOfYear;
+
+    if (String.IsNullOrWhiteSpace(weekOverride))
+    {
+        RESTUtil restUtil = new RESTUtil();
+        string returnResults = restUtil.Get(new NameValueCollection(), $"http://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{nflYear}/types/2/weeks");
+        returnResults = returnResults.Replace("$ref", "reference");
+        NFLWeeks results = JsonSerializer.Deserialize<NFLWeeks>(returnResults);
+        string weekURL = results.items.Last().reference;
+        string weekJson = restUtil.Get(new NameValueCollection(), weekURL);
+        NFLWeekDetails weekInfo = JsonSerializer.Deserialize<NFLWeekDetails>(weekJson);
+        week = weekInfo.number;
     }
-    else {
-        week = weekOfYear - offset;
+    else
+    {
+        _ = Int32.TryParse(weekOverride, out week);
     }
+
     Console.WriteLine($"Week: {week}\n");
 }
 
