@@ -1,15 +1,12 @@
 ﻿
-using System.Globalization;
 using System.Net.Mail;
 using System.Net;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using TeamAssigner.Models;
 using TeamAssigner.Services;
-using TeamAssigner.Utils;
 using System.Collections.Specialized;
 using System.Text.Json;
-using System.Diagnostics;
 
 AppSettings appSettings;
 EmailSettings emailSettings;
@@ -19,7 +16,7 @@ int week;
 Startup(args, out appSettings, out emailSettings, out players);
 GetNFLWeek(out week, appSettings.NFLSeason, appSettings.WeekOverride);
 
-if (week < 19)
+if (week > 0 && week < 19)
 {
     StringBuilder sb = Randomize(appSettings, players, week);
     SendEmail(emailSettings, players, week, sb);

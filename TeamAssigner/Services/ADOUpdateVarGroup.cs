@@ -4,7 +4,6 @@
     using System.Text;
     using System.Text.Json;
     using TeamAssigner.Models;
-    using TeamAssigner.Utils;
 
     internal class ADOUpdateVarGroup
     {
