@@ -19,7 +19,7 @@ int week;
 Startup(args, out appSettings, out emailSettings, out players);
 GetNFLWeek(out week, appSettings.NFLSeason, appSettings.WeekOverride);
 
-if (week < 19)
+if (week > 0 && week < 19)
 {
     StringBuilder sb = Randomize(appSettings, players, week);
     SendEmail(emailSettings, players, week, sb);
@@ -44,7 +44,7 @@ static void GetNFLWeek(out int week, string nflYear, string weekOverride)
         string seasonJson = restUtil.Get(new NameValueCollection(), $"http://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{nflYear}/types/2/weeks");
         seasonJson = seasonJson.Replace("$ref", "reference");
         NFLObject seasonResults = JsonSerializer.Deserialize<NFLObject>(seasonJson);
-        week = seasonResults.count;
+        week = seasonResults.count + 1;
     }
     else
     {
