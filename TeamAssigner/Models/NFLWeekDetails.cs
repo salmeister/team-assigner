@@ -7,6 +7,6 @@
         public string startDate { get; set; }
         public string endDate { get; set; }
         public string text { get; set; }
-        public List<TeamsOnBye> teamsOnBye { get; set; }
+        public List<NFLRef> teamsOnBye { get; set; }
     }
 }
