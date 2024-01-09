@@ -19,6 +19,3 @@ EmailService emailService = new(emailSettings.SMTPServer, emailSettings.SMTPPort
 
 TeamRandomizer teamRandomizer = new(players, emailService, adminEmail, baseurl, weekOverride);
 teamRandomizer.Run();
-
-
-
