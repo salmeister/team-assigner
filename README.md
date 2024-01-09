@@ -11,12 +11,12 @@
 
 ## Yearly Changes
 - Update any changed players details in the appsettings.json file <br />
-  (in Azure DevOps library variable group for my implementation)
+  (in Azure DevOps Library Variable Group for my implementation)
   - Email
   - Name
 
 ## Usage
 - Execute the .exe weekly after Monday and before game(s) on Thursday <br />
-  (schedule as an Azure DevOps Release at 11:00 AM CST in my implementation)
+  (scheduled as an Azure DevOps Release at 11:00 AM CST in my implementation)
 - Week Override
   - To rerun a previous week set the value of weekoverride property on the appsettings.json file
