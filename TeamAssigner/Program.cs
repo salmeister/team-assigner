@@ -19,6 +19,7 @@ GetNFLWeek(out year, out week, weekOverride);
 
 if (players.Count == 16 || players.Count == 32)
 {
+    Console.WriteLine($"year: {year} week: {week}\n");
     if (week > 0 && week < 19)
     {
         StringBuilder sb = Randomize(year, week, players);
@@ -26,7 +27,7 @@ if (players.Count == 16 || players.Count == 32)
     }
     else
     {
-        Console.WriteLine($"year: {year} week: {week}\nNot in a regular season week.");
+        Console.WriteLine($"Not in a regular season week.");
     }
 }
 else
@@ -87,12 +88,10 @@ static void GetNFLWeek(out int year, out int week, string weekOverride)
     {
         bool success = Int32.TryParse(weekOverride, out week);
         {
-            Console.WriteLine($"Could not convert {weekOverride} to a number.");
+            Console.WriteLine($"Could not convert '{weekOverride}' to a number.");
             week = 0;
         }
     }
-
-    Console.WriteLine($"Week: {week}\n");
 }
 
 static List<string> GetByeTeams(int nflYear, int week)
