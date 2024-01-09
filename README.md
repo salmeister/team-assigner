@@ -10,13 +10,13 @@
 - A Gmail account with an "app password" saved in the appsettings.json file to send SMTP email through.
 
 ## Yearly Changes
-- Update any changed players details in the appsettings.json file /
+- Update any changed players details in the appsettings.json file <br />
   (in Azure DevOps library variable group for my implementation).
   - Email
   - Name
 
 ## Usage
-- Execute the .exe weekly after Monday and before game(s) on Thursday /
+- Execute the .exe weekly after Monday and before game(s) on Thursday <br />
   (schedule as an Azure DevOps Release at 11:00 AM CST in my implemenation).
 - Week Override
   - To rerun a previous week set the value of weekoverride property on the appsettings.json file. 
