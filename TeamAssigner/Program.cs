@@ -8,14 +8,14 @@ using TeamAssigner.Services;
 using System.Collections.Specialized;
 using System.Text.Json;
 
-AppSettings appSettings;
 EmailSettings emailSettings;
 List<PlayerInfo> players;
 int year;
 int week;
+string weekOverride;
 
-Startup(args, out appSettings, out emailSettings, out players);
-GetNFLWeek(out year, out week, appSettings.WeekOverride);
+Startup(args, out weekOverride, out emailSettings, out players);
+GetNFLWeek(out year, out week, weekOverride);
 
 if (players.Count == 16 || players.Count == 32)
 {
@@ -34,14 +34,17 @@ else
     Console.WriteLine($"For equal distribution of byes there must be either 16 or 32 players. There are currently {players.Count} players.");
 }
 
-static void Startup(string[] args, out AppSettings appSettings, out EmailSettings emailSettings, out List<PlayerInfo> players)
+static void Startup(string[] args, out string weekOverride, out EmailSettings emailSettings, out List<PlayerInfo> players)
 {
     var builder = new ConfigurationBuilder().AddJsonFile("appsettings.json", optional: false);
     var config = builder.Build();
 
     emailSettings = config.GetRequiredSection("EmailSettings").Get<EmailSettings>();
-    appSettings = config.GetRequiredSection("AppSettings").Get<AppSettings>();
+    
     players = config.GetRequiredSection("Players").Get<List<PlayerInfo>>();
+
+    AppSettings appSettings = config.GetRequiredSection("AppSettings").Get<AppSettings>();
+    weekOverride = appSettings.WeekOverride;
 }
 
 static void GetNFLWeek(out int year, out int week, string weekOverride)
@@ -82,7 +85,11 @@ static void GetNFLWeek(out int year, out int week, string weekOverride)
     }
     else
     {
-        _ = Int32.TryParse(weekOverride, out week);
+        bool success = Int32.TryParse(weekOverride, out week);
+        {
+            Console.WriteLine($"Could not convert {weekOverride} to a number.");
+            week = 0;
+        }
     }
 
     Console.WriteLine($"Week: {week}\n");
