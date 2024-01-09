@@ -5,20 +5,25 @@
     using TeamAssigner.Models;
     public sealed class TeamRandomizer
     {
-        readonly EmailService emailService;
-        readonly List<PlayerInfo> players;
+        //To Test:
+            //Hardcode Year and Week
+            //Comment out call the GetNFLWeek() method
+            //Don't forget to undo testing changes
+
+        readonly EmailService? emailService;
+        readonly List<PlayerInfo>? players;
         readonly string weekOverride;
         readonly string baseurl;
         readonly string adminEmail;
         int year = DateTime.Now.Year;
         int week = 0;
 
-        public TeamRandomizer(List<PlayerInfo> players, EmailService emailService, string adminEmail, string baseurl, string weekOverride = "")
+        public TeamRandomizer(List<PlayerInfo>? players, EmailService? emailService, string adminEmail, string baseurl, string weekOverride = "")
         {
             try
             {
                 this.baseurl = baseurl;
-                this.players = players.ToList();
+                this.players = players?.ToList();
                 this.emailService = emailService;
                 this.adminEmail = adminEmail;
 
@@ -36,13 +41,13 @@
             // MAIN
             GetNFLWeek();
 
-            if (players.Count == 16 || players.Count == 32)
+            if (players?.Count == 16 || players?.Count == 32)
             {
                 Console.WriteLine($"year: {year} week: {week}\n");
                 if (week > 0 && week < 19)
                 {
                     StringBuilder sb = Randomize();
-                    emailService.SendEmail(String.Join(",", players.Select(p => p.Email)), $"Week {week}", sb.ToString());
+                    emailService?.SendEmail(String.Join(",", players.Select(p => p.Email)), $"Week {week}", sb.ToString());
                 }
                 else
                 {
@@ -51,7 +56,7 @@
             }
             else
             {
-                Exit($"For equal distribution of byes there must be either 16 or 32 players. There are currently {players.Count} players.", true);
+                Exit($"For equal distribution of byes there must be either 16 or 32 players. There are currently {players?.Count} players.", true);
             }
 
         }
@@ -64,10 +69,10 @@
                 DateTime now = DateTime.Now;
                 string seasonJson = RESTUtil.Get([], $"{baseurl}/seasons/{now.Year}/types/2");
                 seasonJson = seasonJson.Replace("$ref", "reference");
-                NFLSeason seasonResults = JsonSerializer.Deserialize<NFLSeason>(seasonJson);
+                NFLSeason? seasonResults = JsonSerializer.Deserialize<NFLSeason>(seasonJson);
 
-                DateTime start = Convert.ToDateTime(seasonResults.startDate);
-                DateTime end = Convert.ToDateTime(seasonResults.endDate);
+                DateTime start = Convert.ToDateTime(seasonResults?.startDate);
+                DateTime end = Convert.ToDateTime(seasonResults?.endDate);
 
                 if (now.Ticks > start.Ticks)
                 {
@@ -90,8 +95,8 @@
                 {
                     string weeksJson = RESTUtil.Get([], $"{baseurl}/seasons/{year}/types/2/weeks");
                     weeksJson = weeksJson.Replace("$ref", "reference");
-                    NFLObject weeksResults = JsonSerializer.Deserialize<NFLObject>(weeksJson);
-                    week = weeksResults.count;
+                    NFLObject? weeksResults = JsonSerializer.Deserialize<NFLObject>(weeksJson);
+                    week = weeksResults?.count ?? 0;
                 }
                 else
                 {
@@ -111,7 +116,7 @@
         {
             string weekJson = RESTUtil.Get([], $"{baseurl}/seasons/{year}/types/2/weeks/{week}");
             weekJson = weekJson.Replace("$ref", "reference");
-            NFLWeekDetails weekInfo = JsonSerializer.Deserialize<NFLWeekDetails>(weekJson);
+            NFLWeekDetails? weekInfo = JsonSerializer.Deserialize<NFLWeekDetails>(weekJson);
 
             List<string> byeTeams = [];
             if (weekInfo?.teamsOnBye != null)
@@ -119,11 +124,13 @@
                 foreach (var byeTeam in weekInfo.teamsOnBye)
                 {
                     string byeTeamJson = RESTUtil.Get([], byeTeam.reference);
-                    NFLTeam byeTeamResult = JsonSerializer.Deserialize<NFLTeam>(byeTeamJson);
-                    byeTeams.Add(byeTeamResult.nickname);
+                    NFLTeam? byeTeamResult = JsonSerializer.Deserialize<NFLTeam>(byeTeamJson);
+                    if (byeTeamResult?.nickname != null)
+                    {
+                        byeTeams.Add(byeTeamResult.nickname);
+                    }
                 }
             }
-
             return byeTeams;
         }
 
@@ -143,12 +150,15 @@
             var allTeams = new List<String>();
             string teamsJson = RESTUtil.Get([], $"{baseurl}/teams?limit=32");
             teamsJson = teamsJson.Replace("$ref", "reference");
-            NFLObject teamsResult = JsonSerializer.Deserialize<NFLObject>(teamsJson);
-            foreach (var team in teamsResult.items)
+            NFLObject? teamsResult = JsonSerializer.Deserialize<NFLObject>(teamsJson);
+            foreach (var team in teamsResult?.items)
             {
                 string teamJson = RESTUtil.Get([], team.reference);
-                NFLTeam teamResult = JsonSerializer.Deserialize<NFLTeam>(teamJson);
-                allTeams.Add(teamResult.nickname);
+                NFLTeam? teamResult = JsonSerializer.Deserialize<NFLTeam>(teamJson);
+                if (teamResult?.nickname != null)
+                {
+                    allTeams.Add(teamResult.nickname);
+                }
             }
 
             return allTeams;
@@ -169,7 +179,7 @@
                 {
                     //Setup Lists and Queues
                     Queue<string> randomNonByeTeams = new();
-                    var orderedPlayers = players.OrderBy(p => p.ID);
+                    var orderedPlayers = players?.OrderBy(p => p.ID);
 
                     var nonByeTeams = allTeams.Where(x => !byeTeams.Contains(x)).ToList();
                     nonByeTeams.OrderBy(item => rnd.Next()).Distinct().ToList().ForEach(i => randomNonByeTeams.Enqueue(i));
@@ -178,7 +188,7 @@
                     Console.WriteLine($"Bye Team Count To Date: {byeMarker}\n");
 
                     //Assign the new bye teams to the next player ids in consecutive order
-                    if (byeMarker >= 16 && players.Count <= 16)
+                    if (byeMarker >= 16 && players?.Count <= 16)
                     {
                         byeMarker -= 16;
                         Console.WriteLine($"Bye Team Marker Set To: {byeMarker}\n");
@@ -187,8 +197,8 @@
                     {
                         byeMarker++;
 
-                        var player = orderedPlayers.Where(p => p.ID.Equals(byeMarker)).First();
-                        sb.AppendLine($"{player.Name}: {byeTeamName} & {randomNonByeTeams.Dequeue()}");
+                        var player = orderedPlayers?.Where(p => p.ID.Equals(byeMarker)).First();
+                        sb.AppendLine($"{player?.Name}: {byeTeamName} & {randomNonByeTeams.Dequeue()}");
 
                         player.Filled = true;
                     }
@@ -207,7 +217,7 @@
                 {
                     Queue<string> randomTeams = new Queue<string>();
                     allTeams.OrderBy(item => rnd.Next()).Distinct().ToList().ForEach(i => randomTeams.Enqueue(i));
-                    var randomPlayers = players.OrderBy(item => rnd.Next());
+                    var randomPlayers = players?.OrderBy(item => rnd.Next());
 
                     foreach (var player in randomPlayers)
                     {
@@ -235,7 +245,7 @@
             }
             if (sendEmail)
             {
-                emailService.SendEmail(adminEmail, "Error Running NFL Team Assigner", $"{msg} {ex?.ToString()}");
+                emailService?.SendEmail(adminEmail, "Error Running NFL Team Assigner", $"{msg} {ex?.ToString()}");
             }
         }
     }
