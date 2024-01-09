@@ -11,15 +11,27 @@ using System.Text.Json;
 AppSettings appSettings;
 EmailSettings emailSettings;
 List<PlayerInfo> players;
+int year;
 int week;
 
 Startup(args, out appSettings, out emailSettings, out players);
-GetNFLWeek(out week, appSettings.NFLSeason, appSettings.WeekOverride);
+GetNFLWeek(out year, out week, appSettings.WeekOverride);
 
-if (week > 0 && week < 19)
+if (players.Count == 16 || players.Count == 32)
 {
-    StringBuilder sb = Randomize(appSettings, players, week);
-    SendEmail(emailSettings, players, week, sb);
+    if (week > 0 && week < 19)
+    {
+        StringBuilder sb = Randomize(year, week, players);
+        SendEmail(emailSettings, players, week, sb);
+    }
+    else
+    {
+        Console.WriteLine($"year: {year} week: {week}\nNot in a regular season week.");
+    }
+}
+else
+{
+    Console.WriteLine($"For equal distribution of byes there must be either 16 or 32 players. There are currently {players.Count} players.");
 }
 
 static void Startup(string[] args, out AppSettings appSettings, out EmailSettings emailSettings, out List<PlayerInfo> players)
@@ -32,16 +44,41 @@ static void Startup(string[] args, out AppSettings appSettings, out EmailSetting
     players = config.GetRequiredSection("Players").Get<List<PlayerInfo>>();
 }
 
-static void GetNFLWeek(out int week, string nflYear, string weekOverride)
+static void GetNFLWeek(out int year, out int week, string weekOverride)
 {
+    // Determine Year
+    RESTUtil restUtil = new();
+    DateTime now = DateTime.Now;
+    string seasonJson = restUtil.Get(new NameValueCollection(), $"http://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{now.Year}/types/2");
+    seasonJson = seasonJson.Replace("$ref", "reference");
+    NFLSeason seasonResults = JsonSerializer.Deserialize<NFLSeason>(seasonJson);
 
+    DateTime start = Convert.ToDateTime(seasonResults.startDate);
+    DateTime end = Convert.ToDateTime(seasonResults.endDate);
+
+    if (now.Ticks > start.Ticks)
+    {
+        if (now.Ticks < end.Ticks)
+        {
+            year = now.Year;
+        }
+        else
+        {
+            year = now.Year + 1;
+        }
+    }
+    else
+    {
+        year = now.Year - 1;
+    }
+
+    // Determine Week
     if (String.IsNullOrWhiteSpace(weekOverride))
     {
-        RESTUtil restUtil = new();
-        string seasonJson = restUtil.Get(new NameValueCollection(), $"http://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{nflYear}/types/2/weeks");
-        seasonJson = seasonJson.Replace("$ref", "reference");
-        NFLObject seasonResults = JsonSerializer.Deserialize<NFLObject>(seasonJson);
-        week = seasonResults.count;
+        string weeksJson = restUtil.Get(new NameValueCollection(), $"http://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{year}/types/2/weeks");
+        weeksJson = weeksJson.Replace("$ref", "reference");
+        NFLObject weeksResults = JsonSerializer.Deserialize<NFLObject>(weeksJson);
+        week = weeksResults.count;
     }
     else
     {
@@ -51,7 +88,7 @@ static void GetNFLWeek(out int week, string nflYear, string weekOverride)
     Console.WriteLine($"Week: {week}\n");
 }
 
-static List<string> GetByeTeams(string nflYear, int week)
+static List<string> GetByeTeams(int nflYear, int week)
 {
     RESTUtil restUtil = new();
     string weekJson = restUtil.Get(new NameValueCollection(), $"http://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/{nflYear}/types/2/weeks/{week}");
@@ -66,11 +103,21 @@ static List<string> GetByeTeams(string nflYear, int week)
             string byeTeamJson = restUtil.Get(new NameValueCollection(), byeTeam.reference);
             NFLTeam byeTeamResult = JsonSerializer.Deserialize<NFLTeam>(byeTeamJson);
             byeTeams.Add(byeTeamResult.nickname);
-            Console.WriteLine($"Bye Team: {byeTeamResult.nickname}\n");
         }
     }
 
     return byeTeams;
+}
+
+static int GetByeTeamCountToDate (int nflYear, int week)
+{
+    int count = 0;
+    for (int i = week - 1;  i > 0; i--)
+    {
+        count += GetByeTeams(nflYear, i).Count;
+    }
+
+    return count;
 }
 
 static List<string> GetAllTeams()
@@ -90,14 +137,16 @@ static List<string> GetAllTeams()
     return allTeams;
 }
 
-static StringBuilder Randomize(AppSettings appSettings, List<PlayerInfo> players, int currentWeek)
+static StringBuilder Randomize(int year, int currentWeek, List<PlayerInfo> players)
 {
     StringBuilder sb = new();
     var rnd = new Random();
 
     var allTeams = GetAllTeams();
 
-    var byeTeams = GetByeTeams(appSettings.NFLSeason, currentWeek);
+
+    var byeTeams = GetByeTeams(year, currentWeek);
+    byeTeams.ForEach(p => Console.WriteLine($"Bye Team: {p}"));
     if (byeTeams.Any())
     {
         //There are teams on bye so need to evenly distribute those teams
@@ -109,20 +158,20 @@ static StringBuilder Randomize(AppSettings appSettings, List<PlayerInfo> players
         var nonByeTeams = allTeams.Where(x => !byeTeams.Contains(x)).ToList();
         nonByeTeams.OrderBy(item => rnd.Next()).Distinct().ToList().ForEach(i => randomNonByeTeams.Enqueue(i));
 
-        //Read the variable that sets that last team id (from last week) that received a bye team
-        ADOUpdateVarGroup adoUpdateVarGroup = new ADOUpdateVarGroup(appSettings.Token, appSettings.ADOBaseURL, appSettings.VariableGroupIDToModify);
-        int.TryParse(adoUpdateVarGroup.GetCurrentValueOfByeWeekMarker(), out int nextPlayerToGetBye);
+        int byeMarker = GetByeTeamCountToDate(year, currentWeek);
+        Console.WriteLine($"Bye Team Count To Date: {byeMarker}\n");
 
         //Assign the new bye teams to the next player ids in consecutive order
+        if (byeMarker >= 16 && players.Count <= 16)
+        {
+            byeMarker = byeMarker - 16;
+            Console.WriteLine($"Bye Team Marker Set To: {byeMarker}\n");
+        }
         foreach (var byeTeamName in byeTeams)
         {
-            if (nextPlayerToGetBye >= 16)
-            {
-                nextPlayerToGetBye = 0;
-            }
-            nextPlayerToGetBye++;
+            byeMarker++;
 
-            var player = orderedPlayers.Where(p => p.ID.Equals(nextPlayerToGetBye)).First();
+            var player = orderedPlayers.Where(p => p.ID.Equals(byeMarker)).First();
             sb.AppendLine($"{player.Name}: {byeTeamName} & {randomNonByeTeams.Dequeue()}");
 
             player.Filled = true;
@@ -136,8 +185,6 @@ static StringBuilder Randomize(AppSettings appSettings, List<PlayerInfo> players
                 sb.AppendLine($"{player.Name}: {randomNonByeTeams.Dequeue()} & {randomNonByeTeams.Dequeue()}");
             }
         }
-        //Update the variable to the highest team id that received a bye team
-        adoUpdateVarGroup.SetNewValueOfByeWeekMarker(nextPlayerToGetBye);
     }
     else
     {
