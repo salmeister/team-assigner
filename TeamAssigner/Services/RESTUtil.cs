@@ -8,13 +8,13 @@
 
     internal class RESTUtil
     {
-        public string Get(NameValueCollection headers, string url)
+        public static string Get(NameValueCollection headers, string url)
         {
-            HttpClientHandler handler = new HttpClientHandler();
+            HttpClientHandler handler = new();
 
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11;
 
-            using HttpClient client = new HttpClient(handler);
+            using HttpClient client = new(handler);
             client.DefaultRequestHeaders.Accept.Add(new
             MediaTypeWithQualityHeaderValue("application/json"));
             if (headers != null)
@@ -31,14 +31,14 @@
             }
             else
             {
-                Exception ex = new Exception($"{data.RequestMessage?.RequestUri} returned: Status Code \"{data.StatusCode}\" with Reason \"{data.Content.ReadAsStringAsync().Result}\"");
+                Exception ex = new($"{data.RequestMessage?.RequestUri} returned: Status Code \"{data.StatusCode}\" with Reason \"{data.Content.ReadAsStringAsync().Result}\"");
                 throw ex;
             }
         }
 
-        public string Put(NameValueCollection headers, string url, string package)
+        public static string Put(NameValueCollection headers, string url, string package)
         {
-            HttpClientHandler handler = new HttpClientHandler();
+            HttpClientHandler handler = new();
 
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11;
 
@@ -60,7 +60,7 @@
             }
             else
             {
-                Exception ex = new Exception($"{response.RequestMessage.RequestUri} returned: Status Code \"{response.StatusCode}\" with Content \"{response.Content.ReadAsStringAsync().Result}\"");
+                Exception ex = new($"{response.RequestMessage.RequestUri} returned: Status Code \"{response.StatusCode}\" with Content \"{response.Content.ReadAsStringAsync().Result}\"");
                 throw ex;
             }
         }
