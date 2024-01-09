@@ -7,8 +7,9 @@
   - Endpoints described here: https://gist.github.com/nntrn/ee26cb2a0716de0947a0a4e9a157bc1c
   - Base API: https://sports.core.api.espn.com/v2/sports/football/leagues/nfl
 - Must have either 16 (2 teams each) or 32 (1 team each) players configured in the appsettings.json file
-  - For even distribution of byes throughout the year 
-- A Gmail account with an "app password" saved in the appsettings.json file to send SMTP email through
+  - For even distribution of byes throughout the year
+- SMTP account information saved in the appsettings.json file to send email notifications <br />
+  (For my implemenation, a gmail account with an "app password")
 
 ## Yearly Changes
 - Update any changed players details in the appsettings.json file <br />
