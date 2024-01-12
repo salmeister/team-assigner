@@ -11,14 +11,14 @@
             //Don't forget to undo testing changes
 
         readonly EmailService? emailService;
-        readonly List<PlayerInfo>? players;
+        readonly IList<PlayerInfo> players;
         readonly string weekOverride;
         readonly string baseurl;
         readonly string adminEmail;
         int year = DateTime.Now.Year;
         int week = 0;
 
-        public TeamRandomizer(List<PlayerInfo>? players, EmailService? emailService, string adminEmail, string baseurl, string weekOverride = "")
+        public TeamRandomizer(IList<PlayerInfo> players, EmailService? emailService, string adminEmail, string baseurl, string weekOverride = "")
         {
             try
             {
@@ -215,7 +215,7 @@
                 //No bye teams so evenly distribute all teams
                 else
                 {
-                    Queue<string> randomTeams = new Queue<string>();
+                    Queue<string> randomTeams = new();
                     allTeams.OrderBy(item => rnd.Next()).Distinct().ToList().ForEach(i => randomTeams.Enqueue(i));
                     var randomPlayers = players?.OrderBy(item => rnd.Next());
 
