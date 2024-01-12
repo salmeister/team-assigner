@@ -6,14 +6,15 @@
 - ESPN api exists and has not changed since development and testing in Jan. 2024
   - Endpoints described here: https://gist.github.com/nntrn/ee26cb2a0716de0947a0a4e9a157bc1c
   - Base API: https://sports.core.api.espn.com/v2/sports/football/leagues/nfl
-- Must have either 16 (2 teams each) or 32 (1 team each) players configured in the appsettings.json file
+- Need a Google Sheets document with a header row for the player name and player email
+- Need a the Google Sheets document ID and api json credentials from a Google Service Account
+- Must have either 16 (2 teams each) or 32 (1 team each) players configured in a connected Google Sheets doc
   - For even distribution of byes throughout the year
 - SMTP account information saved in the appsettings.json file to send email notifications <br />
   (For my implemenation, a gmail account with an "app password")
 
 ## Yearly Changes
-- Update any changed players details in the appsettings.json file <br />
-  (set in an Azure DevOps Library Variable Group for my implementation)
+- Update any changed players details in the Google Sheets doc <br />
   - Email
   - Name
 
