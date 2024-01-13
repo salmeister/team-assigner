@@ -3,6 +3,7 @@
     using System.Text;
     using System.Text.Json;
     using TeamAssigner.Models;
+    using System.Linq;
     public sealed class TeamRandomizer
     {
         //To Test:
@@ -96,7 +97,20 @@
                     string weeksJson = RESTUtil.Get([], $"{baseurl}/seasons/{year}/types/2/weeks");
                     weeksJson = weeksJson.Replace("$ref", "reference");
                     NFLObject? weeksResults = JsonSerializer.Deserialize<NFLObject>(weeksJson);
-                    week = weeksResults?.count ?? 0;
+                    if (weeksResults != null)
+                    {
+                        string weekJson = RESTUtil.Get([], $"{weeksResults.items.Last().reference}");
+                        weekJson = weekJson.Replace("$ref", "reference");
+                        NFLWeek? weekResult = JsonSerializer.Deserialize<NFLWeek>(weekJson);
+                        if (weekResult != null)
+                        {
+                            if (Convert.ToDateTime(weekResult.startDate) < now && now < Convert.ToDateTime(weekResult.endDate))
+                            {
+                                week = weekResult.number;
+                            }
+                        }
+
+                    }
                 }
                 else
                 {
