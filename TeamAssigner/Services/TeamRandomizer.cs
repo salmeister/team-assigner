@@ -104,10 +104,22 @@
                         NFLWeek? weekResult = JsonSerializer.Deserialize<NFLWeek>(weekJson);
                         if (weekResult != null)
                         {
-                            if (Convert.ToDateTime(weekResult.startDate) < now && now < Convert.ToDateTime(weekResult.endDate))
+                            if (Convert.ToDateTime(weekResult.startDate) < now)
                             {
-                                week = weekResult.number;
+                                if (now < Convert.ToDateTime(weekResult.endDate))
+                                {
+                                    week = weekResult.number;
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"Today is already passed the end date ({weekResult.endDate}) of the latest NFL week that was found.");
+                                }
                             }
+                            else
+                            {
+                                Console.WriteLine($"Today is not yet to the start date ({weekResult.startDate}) of the latest NFL week that was found.");
+                            }
+
                         }
 
                     }
