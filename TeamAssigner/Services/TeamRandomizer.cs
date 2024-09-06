@@ -99,27 +99,24 @@
                     NFLObject? weeksResults = JsonSerializer.Deserialize<NFLObject>(weeksJson);
                     if (weeksResults != null)
                     {
-                        string weekJson = RESTUtil.Get([], $"{weeksResults.items.Last().reference}");
-                        weekJson = weekJson.Replace("$ref", "reference");
-                        NFLWeek? weekResult = JsonSerializer.Deserialize<NFLWeek>(weekJson);
-                        if (weekResult != null)
+                        foreach (var weekInfo in weeksResults.items)
                         {
-                            if (Convert.ToDateTime(weekResult.startDate) < now)
+                            string weekJson = RESTUtil.Get([], $"{weekInfo.reference}");
+                            weekJson = weekJson.Replace("$ref", "reference");
+                            NFLWeek? weekResult = JsonSerializer.Deserialize<NFLWeek>(weekJson);
+                            if (weekResult != null)
                             {
-                                if (now < Convert.ToDateTime(weekResult.endDate))
+                                Console.WriteLine($"Checking if we are in {weekResult.text} -- start: {weekResult.startDate} end: {weekResult.endDate}...");
+                                if (Convert.ToDateTime(weekResult.startDate) < now)
                                 {
-                                    week = weekResult.number;
-                                }
-                                else
-                                {
-                                    Console.WriteLine($"Today is already passed the end date ({weekResult.endDate}) of the latest NFL week that was found.");
+                                    if (now < Convert.ToDateTime(weekResult.endDate))
+                                    {
+                                        Console.WriteLine($"Setting week to {weekResult.number}.");
+                                        week = weekResult.number;
+                                        break;
+                                    }
                                 }
                             }
-                            else
-                            {
-                                Console.WriteLine($"Today is not yet to the start date ({weekResult.startDate}) of the latest NFL week that was found.");
-                            }
-
                         }
 
                     }
