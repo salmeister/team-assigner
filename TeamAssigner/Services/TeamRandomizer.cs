@@ -221,7 +221,7 @@
                         byeMarker++;
 
                         var player = orderedPlayers?.Where(p => p.ID.Equals(byeMarker)).First();
-                        sb.AppendLine($"{player?.Name}: {byeTeamName} & {randomNonByeTeams.Dequeue()}");
+                        sb.AppendLine($"{player?.Name}: {byeTeamName.ToUpper()} & {randomNonByeTeams.Dequeue()}");
 
                         player.Filled = true;
                     }
