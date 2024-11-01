@@ -177,7 +177,7 @@
                     Quote? quoteObj = JsonSerializer.Deserialize<Quote>(quoteJson);
                     sb.Append($"<i>{quoteObj?.quote}</i>");
                     sb.AppendLine("<br>");
-                    sb.AppendLine($"- {quoteObj?.author}");
+                    sb.AppendLine($"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- {quoteObj?.author}");
                 }
                 catch (Exception ex)
                 {
