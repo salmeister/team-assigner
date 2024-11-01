@@ -17,8 +17,9 @@
                 EnableSsl = true
             };
             try
-            {
-                client.Send(fromEmail, toEmails, subject, body);
+            {   
+                Console.WriteLine($"Sending email to {toEmails} with subject {subject} and body\n {body}");
+                //client.Send(fromEmail, toEmails, subject, body);
             }
             catch (Exception e)
             {

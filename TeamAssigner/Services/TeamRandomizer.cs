@@ -4,6 +4,7 @@
     using System.Text.Json;
     using TeamAssigner.Models;
     using System.Linq;
+   
     public sealed class TeamRandomizer
     {
         //To Test:
@@ -15,15 +16,19 @@
         readonly IList<PlayerInfo> players;
         readonly string weekOverride;
         readonly string baseurl;
+        readonly string scoresBaseURL;
+        readonly string quoteurl;
         readonly string adminEmail;
         int year = DateTime.Now.Year;
         int week = 0;
 
-        public TeamRandomizer(IList<PlayerInfo> players, EmailService? emailService, string adminEmail, string baseurl, string weekOverride = "")
+        public TeamRandomizer(IList<PlayerInfo> players, EmailService? emailService, string adminEmail, string baseurl, string scoresBaseURL, string quoteurl, string weekOverride = "")
         {
             try
             {
                 this.baseurl = baseurl;
+                this.scoresBaseURL = scoresBaseURL;
+                this.quoteurl = quoteurl;
                 this.players = players?.ToList();
                 this.emailService = emailService;
                 this.adminEmail = adminEmail;
@@ -47,8 +52,9 @@
                 Console.WriteLine($"year: {year} week: {week}\n");
                 if (week > 0 && week < 19)
                 {
-                    StringBuilder sb = Randomize();
-                    emailService?.SendEmail(String.Join(",", players.Select(p => p.Email)), $"Week {week}", sb.ToString());
+                    StringBuilder thisweekSB = Randomize();
+                    StringBuilder lastweekSB = GetPreviousWeekScores(week);
+                    emailService?.SendEmail(String.Join(",", players.Select(p => p.Email)), $"Week {week}", thisweekSB.ToString() + lastweekSB.ToString());
                 }
                 else
                 {
@@ -134,6 +140,50 @@
                 Exit($"An error occurred getting the NFL Season and Week info.", true, ex);
             }
         }
+
+        private StringBuilder GetPreviousWeekScores(int week)
+        {
+            string scoresJson = RESTUtil.Get([], $"{scoresBaseURL}/scoreboard?dates={year}&seasontype=2&week={week-1}");
+            scoresJson = scoresJson.Replace("$ref", "reference");
+            NFLWeeklyScores? scoreInfo = JsonSerializer.Deserialize<NFLWeeklyScores>(scoresJson);
+
+            StringBuilder sb = new();
+            foreach (var game in scoreInfo?.events)
+            {
+                foreach (var competition in game.competitions) {
+                    foreach (var team in competition.competitors)
+                    {
+                        if (team.score == "33")
+                        {
+                            sb.AppendLine("");
+                            sb.AppendLine($"Congratulation to the player who had the {team.team.displayName} last week.");
+                            sb.AppendLine(competition.headlines[0].shortLinkText);
+                            sb.AppendLine("");
+                            Console.WriteLine($"{team.team.displayName} had {team.score} in week {week-1}.");
+                        }
+                    }
+                }
+            }
+            if (sb.Length < 1)
+            {
+                sb.AppendLine("");
+                sb.AppendLine("No team had 33 points last week.");
+                sb.AppendLine("");
+                try
+                {
+                    string quoteJson = RESTUtil.Get([], quoteurl);
+                    Quote? quoteObj = JsonSerializer.Deserialize<Quote>(quoteJson);
+                    sb.AppendLine($"{quoteObj?.quote} - {quoteObj?.author}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Unable to get quote");
+                }
+            }
+
+            return sb;
+        }
+
 
         private List<string> GetByeTeams(int week)
         {

@@ -10,6 +10,8 @@ var config = builder.Build();
 AppSettings appSettings = config.GetRequiredSection("AppSettings").Get<AppSettings>();
 string weekOverride = appSettings.WeekOverride;
 string baseurl = appSettings.BaseAPIURL;
+string scoresBaseURL = appSettings.ScoresBaseAPIURL;
+string quoteurl = appSettings.QuoteAPIURL;
 string keyFileName = appSettings.KeyFileName;
 string sheetID = appSettings.SheetID;
 string sheetRange = appSettings.SheetRange;
@@ -23,7 +25,7 @@ IList<PlayerInfo> players = gss.ReadDoc();
 
 if (players.Count > 0)
 {
-    TeamRandomizer teamRandomizer = new(players, emailService, adminEmail, baseurl, weekOverride);
+    TeamRandomizer teamRandomizer = new(players, emailService, adminEmail, baseurl, scoresBaseURL, quoteurl, weekOverride);
     teamRandomizer.Run();
 }
 else
