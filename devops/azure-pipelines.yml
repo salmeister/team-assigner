@@ -38,11 +38,7 @@ steps:
     arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
     zipAfterPublish: false
 
-- task: DownloadSecureFile@1
-  inputs:
-    secureFile: 'creds.json'
-
 - task: PublishPipelineArtifact@1
   inputs:
-    targetPath: '$(DOWNLOADSECUREFILE.SECUREFILEPATH)'
+    targetPath: '$(Build.ArtifactStagingDirectory)'
     artifactName: 'drop'
