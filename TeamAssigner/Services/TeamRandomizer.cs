@@ -155,10 +155,11 @@
                     {
                         if (team.score == "33")
                         {
-                            sb.AppendLine("");
-                            sb.AppendLine($"Congratulation to the player who had the {team.team.displayName} last week.");
-                            sb.AppendLine(competition.headlines[0].shortLinkText);
-                            sb.AppendLine("");
+                            sb.AppendLine("<br>");
+                            sb.AppendLine($"<b>Congratulation to the player who had the {team.team.displayName} last week.</b>");
+                            sb.AppendLine("<br>");
+                            sb.AppendLine($"<i>{competition.headlines[0].shortLinkText}</i>");
+                            sb.AppendLine("<br>");
                             Console.WriteLine($"{team.team.displayName} had {team.score} in week {week-1}.");
                         }
                     }
@@ -166,14 +167,17 @@
             }
             if (sb.Length < 1)
             {
-                sb.AppendLine("");
+                sb.AppendLine("<br>");
                 sb.AppendLine("No team had 33 points last week.");
-                sb.AppendLine("");
+                sb.AppendLine("<br>");
+                sb.AppendLine("<br>");
                 try
                 {
                     string quoteJson = RESTUtil.Get([], quoteurl);
                     Quote? quoteObj = JsonSerializer.Deserialize<Quote>(quoteJson);
-                    sb.AppendLine($"{quoteObj?.quote} - {quoteObj?.author}");
+                    sb.Append($"<i>{quoteObj?.quote}</i>");
+                    sb.AppendLine("<br>");
+                    sb.AppendLine($"- {quoteObj?.author}");
                 }
                 catch (Exception ex)
                 {
@@ -266,12 +270,13 @@
                         byeMarker -= 16;
                         Console.WriteLine($"Bye Team Marker Set To: {byeMarker}\n");
                     }
+                    sb.AppendLine("<table><tr><th>Player</th><th>Team 1</th><th>Team 2</th></tr>");
                     foreach (var byeTeamName in byeTeams)
                     {
                         byeMarker++;
 
                         var player = orderedPlayers?.Where(p => p.ID.Equals(byeMarker)).First();
-                        sb.AppendLine($"{player?.Name}: {byeTeamName.ToUpper()} & {randomNonByeTeams.Dequeue()}");
+                        sb.AppendLine($"<tr><td>{player?.Name}</td><td style='background-color: lightgray;'>{byeTeamName}</td><td>{randomNonByeTeams.Dequeue()}</td></tr>");
 
                         player.Filled = true;
                     }
@@ -281,7 +286,7 @@
                     {
                         if (!player.Filled)
                         {
-                            sb.AppendLine($"{player.Name}: {randomNonByeTeams.Dequeue()} & {randomNonByeTeams.Dequeue()}");
+                            sb.AppendLine($"<tr><td>{player.Name}</td><td>{randomNonByeTeams.Dequeue()}</td><td>{randomNonByeTeams.Dequeue()}</td></tr>");
                         }
                     }
                 }
@@ -292,12 +297,13 @@
                     allTeams.OrderBy(item => rnd.Next()).Distinct().ToList().ForEach(i => randomTeams.Enqueue(i));
                     var randomPlayers = players?.OrderBy(item => rnd.Next());
 
+                    sb.AppendLine("<table><tr><th>Player</th><th>Team 1</th><th>Team 2</th></tr>");
                     foreach (var player in randomPlayers)
                     {
-                        sb.AppendLine($"{player.Name}: {randomTeams.Dequeue()} & {randomTeams.Dequeue()}");
+                        sb.AppendLine($"<tr><td>{player.Name}</td><td>{randomTeams.Dequeue()}</td><td>{randomTeams.Dequeue()}</td></tr>");
                     }
                 }
-
+                sb.AppendLine("</table>");
                 Console.WriteLine(sb.ToString());
 
             }
