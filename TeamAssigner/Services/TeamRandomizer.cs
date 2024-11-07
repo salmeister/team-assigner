@@ -274,6 +274,10 @@
                     foreach (var byeTeamName in byeTeams)
                     {
                         byeMarker++;
+                        if (byeMarker >= 16 && players?.Count == 16)
+                        {
+                            byeMarker -= 16;
+                        }
 
                         var player = orderedPlayers?.Where(p => p.ID.Equals(byeMarker)).First();
                         sb.AppendLine($"<tr><td>{player?.Name}</td><td style='background-color: lightgray;'>{byeTeamName}</td><td>{randomNonByeTeams.Dequeue()}</td></tr>");
