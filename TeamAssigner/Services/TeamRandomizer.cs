@@ -4,6 +4,7 @@
     using System.Text.Json;
     using TeamAssigner.Models;
     using System.Linq;
+    using System.IO;
    
     public sealed class TeamRandomizer
     {
@@ -173,15 +174,17 @@
                 sb.AppendLine("<br>");
                 try
                 {
-                    string quoteJson = RESTUtil.Get([], quoteurl);
-                    Quote? quoteObj = JsonSerializer.Deserialize<Quote>(quoteJson);
-                    sb.Append($"<i>{quoteObj?.quote}</i>");
-                    sb.AppendLine("<br>");
-                    sb.AppendLine($"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- {quoteObj?.author}");
+                    Quote? randomQuote = GetRandomQuoteFromFile();
+                    if (randomQuote != null)
+                    {
+                        sb.Append($"<i>{randomQuote.text}</i>");
+                        sb.AppendLine("<br>");
+                        sb.AppendLine($"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- {randomQuote.author}");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Unable to get quote");
+                    Console.WriteLine($"Unable to get quote: {ex.Message}");
                 }
             }
 
@@ -317,6 +320,58 @@
                 Exit($"An error occurred running the app.", true, ex);
             }
             return sb;
+        }
+
+        private Quote? GetRandomQuoteFromFile()
+        {
+            try
+            {
+                // Try multiple possible locations for the quotes file
+                string[] possiblePaths = {
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "quotes.json"),
+                    Path.Combine(Directory.GetCurrentDirectory(), "quotes.json"),
+                    Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "", "quotes.json")
+                };
+
+                string quotesFilePath = "";
+                foreach (string path in possiblePaths)
+                {
+                    if (File.Exists(path))
+                    {
+                        quotesFilePath = path;
+                        break;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(quotesFilePath))
+                {
+                    Console.WriteLine($"Quotes file not found in any of the expected locations:");
+                    foreach (string path in possiblePaths)
+                    {
+                        Console.WriteLine($"  - {path}");
+                    }
+                    return null;
+                }
+
+                Console.WriteLine($"Using quotes file from: {quotesFilePath}");
+                string quotesJson = File.ReadAllText(quotesFilePath);
+                Quote[]? quotes = JsonSerializer.Deserialize<Quote[]>(quotesJson);
+                
+                if (quotes == null || quotes.Length == 0)
+                {
+                    Console.WriteLine("No quotes found in the quotes file.");
+                    return null;
+                }
+
+                var random = new Random();
+                int randomIndex = random.Next(quotes.Length);
+                return quotes[randomIndex];
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reading quotes from file: {ex.Message}");
+                return null;
+            }
         }
 
         private void Exit(string msg, bool sendEmail, Exception? ex = null)
