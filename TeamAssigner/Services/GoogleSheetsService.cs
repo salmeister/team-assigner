@@ -48,8 +48,8 @@ namespace TeamAssigner.Services
                     players.Add(new PlayerInfo()
                     {
                         ID = i-1,
-                        Name = values[i][0].ToString(),
-                        Email = values[i][1].ToString()
+                        Name = values[i][0]?.ToString() ?? string.Empty,
+                        Email = values[i][1]?.ToString() ?? string.Empty
                     });
                 }
                 Console.WriteLine("Players:");

@@ -14,12 +14,12 @@
             //Don't forget to undo testing changes
 
         readonly EmailService? emailService;
-        readonly IList<PlayerInfo> players;
-        readonly string weekOverride;
-        readonly string baseurl;
-        readonly string scoresBaseURL;
-        readonly string quoteurl;
-        readonly string adminEmail;
+        readonly IList<PlayerInfo> players = [];
+        readonly string weekOverride = "";
+        readonly string baseurl = "";
+        readonly string scoresBaseURL = "";
+        readonly string quoteurl = "";
+        readonly string adminEmail = "";
         int year = DateTime.Now.Year;
         int week = 0;
 
@@ -30,7 +30,7 @@
                 this.baseurl = baseurl;
                 this.scoresBaseURL = scoresBaseURL;
                 this.quoteurl = quoteurl;
-                this.players = players?.ToList();
+                this.players = players?.ToList() ?? [];
                 this.emailService = emailService;
                 this.adminEmail = adminEmail;
                 this.weekOverride = weekOverride ?? "";
@@ -129,12 +129,9 @@
 
                     }
                 }
-                else
+                else if (!int.TryParse(weekOverride, out week))
                 {
-                    bool success = Int32.TryParse(weekOverride, out week);
-                    {
-                        Console.WriteLine($"Could not convert '{weekOverride}' to a number.");
-                    }
+                    Console.WriteLine($"Could not convert '{weekOverride}' to a number.");
                 }
             }
             catch (Exception ex)
@@ -145,28 +142,61 @@
 
         private StringBuilder GetPreviousWeekScores(int week)
         {
-            string scoresJson = RESTUtil.Get([], $"{scoresBaseURL}/scoreboard?dates={year}&seasontype=2&week={week-1}");
-            scoresJson = scoresJson.Replace("$ref", "reference");
-            NFLWeeklyScores? scoreInfo = JsonSerializer.Deserialize<NFLWeeklyScores>(scoresJson);
+            var sb = new StringBuilder();
 
-            StringBuilder sb = new();
-            foreach (var game in scoreInfo?.events)
+            // Week 1 (and anything earlier) has no regular-season prior week.
+            // Calling the scoreboard with week=0 is invalid and is skipped on purpose.
+            if (week <= 1)
             {
-                foreach (var competition in game.competitions) {
-                    foreach (var team in competition.competitors)
+                Console.WriteLine("Skipping previous-week scoreboard: no regular-season week before week 1.");
+                return sb;
+            }
+
+            int previousWeek = week - 1;
+            string url = $"{scoresBaseURL}/scoreboard?dates={year}&seasontype=2&week={previousWeek}";
+
+            try
+            {
+                Console.WriteLine($"Fetching previous-week scores: {url}");
+                string scoresJson = RESTUtil.Get([], url);
+                scoresJson = scoresJson.Replace("$ref", "reference");
+                NFLWeeklyScores? scoreInfo = JsonSerializer.Deserialize<NFLWeeklyScores>(scoresJson);
+
+                foreach (var game in scoreInfo?.events ?? [])
+                {
+                    foreach (var competition in game.competitions ?? [])
                     {
-                        if (team.score == "33")
+                        foreach (var competitor in competition.competitors ?? [])
                         {
+                            if (competitor.score != "33")
+                            {
+                                continue;
+                            }
+
+                            string displayName = competitor.team?.displayName ?? "a team";
                             sb.AppendLine("<br>");
-                            sb.AppendLine($"<b>Congratulation to the player who had the {team.team.displayName} last week.</b>");
+                            sb.AppendLine($"<b>Congratulation to the player who had the {displayName} last week.</b>");
                             sb.AppendLine("<br>");
-                            sb.AppendLine($"<i>{competition.headlines[0].shortLinkText}</i>");
-                            sb.AppendLine("<br>");
-                            Console.WriteLine($"{team.team.displayName} had {team.score} in week {week-1}.");
+                            if (competition.headlines is { Count: > 0 } && !string.IsNullOrWhiteSpace(competition.headlines[0].shortLinkText))
+                            {
+                                sb.AppendLine($"<i>{competition.headlines[0].shortLinkText}</i>");
+                                sb.AppendLine("<br>");
+                            }
+                            Console.WriteLine($"{displayName} had {competitor.score} in week {previousWeek}.");
                         }
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                // Sheets + randomization already succeeded; do not abort the weekly email.
+                Console.WriteLine($"Warning: ESPN scoreboard request failed for week {previousWeek}. Assignment email will still be sent. {ex.Message}");
+                sb.AppendLine("<br>");
+                sb.AppendLine("Previous-week scores were unavailable this run.");
+                sb.AppendLine("<br>");
+                return sb;
+            }
+
             if (sb.Length < 1)
             {
                 sb.AppendLine("<br>");

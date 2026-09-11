@@ -1,98 +1,133 @@
-# Random Team Assigner By NFL Week
+# Team Assigner
+
+Weekly NFL “two teams each” email assigner. It reads player names and emails from a Google Sheet, picks teams for the current NFL regular-season week (with even bye distribution), and emails everyone their assignments.
+
+## What it does
+
+1. Looks up the current NFL regular season and week from ESPN.
+2. Reads 16 or 32 players from Google Sheets.
+3. Randomizes two teams per player (or one team each if you have 32), spreading bye teams fairly.
+4. Emails the table to every player.
+5. For week 2+, appends a “who scored 33 last week?” blurb (or a quote if nobody did). Week 1 skips that section — there is no prior regular-season week.
 
 ## Requirements
-- .NET 10 SDK (`net10.0`) to build and run locally
-- The NFL consists of 32 teams
-- The NFL season consists of 18 weeks
-- ESPN api exists and has not changed since development and testing in Jan. 2024
-  - Endpoints described here: https://gist.github.com/nntrn/ee26cb2a0716de0947a0a4e9a157bc1c
-  - Base API: https://sports.core.api.espn.com/v2/sports/football/leagues/nfl
-- Need a Google Sheets document with a header row for the player name and player email
-- Need a the Google Sheets document ID and api json credentials from a Google Service Account
-- Must have either 16 (2 teams each) or 32 (1 team each) players configured in a connected Google Sheets doc
-  - For even distribution of byes throughout the year
-- SMTP account information saved in the appsettings.json file to send email notifications <br />
-  (For my implemenation, a gmail account with an "app password")
 
-## Quote Functionality
-The application includes a quote feature that displays inspirational quotes in the email notifications when no team scored exactly 33 points in the previous week.
+- **.NET 10 SDK** (`net10.0`) to build and run locally
+- **16 or 32 players** (even bye distribution over 18 weeks / 32 NFL teams)
+- A **Google Sheet** with player name + email, and a **Google Cloud service account** that can read it
+- **SMTP** to send mail (the included workflow uses Gmail + an [app password](https://support.google.com/accounts/answer/185833))
+- ESPN public APIs (no ESPN key). See unofficial endpoint notes: https://gist.github.com/nntrn/ee26cb2a0716de0947a0a4e9a157bc1c
 
-### Quote Sources
-The application supports two methods for retrieving quotes:
+## Google Sheet format
 
-1. **Static JSON File (Default)**: The application includes a local `quotes.json` file containing over 6,000 inspirational quotes from various authors. This is the primary method and works offline without any external dependencies.
+`SheetRange` defaults to `Sheet1` (the whole first tab). **Row 1 is a header** and is skipped. Data starts on row 2:
 
-2. **REST API Fallback**: The application can also be configured to call an external REST API to retrieve quotes. This functionality is controlled by the `QuoteAPIURL` setting in `appsettings.json`.
+| Name | Email |
+| --- | --- |
+| Ada Lovelace | ada@example.com |
+| Grace Hopper | grace@example.com |
 
-### Quote File Structure
-The `quotes.json` file contains an array of quote objects with the following structure:
-```json
-[
-  {
-    "text": "The quote text here",
-    "author": "Author Name",
-    "source": "Optional source URL",
-    "tags": "Optional tags"
-  }
-]
-```
+- Column A: player name  
+- Column B: email  
+- Add **exactly 16 or 32** data rows (plus the header)
 
-### Configuration
-- **QuoteAPIURL**: Set this in `appsettings.json` if you want to use a REST API instead of the local file
-- The application automatically falls back to the local quotes file if the API call fails
-- No additional configuration is required for the local quotes functionality
+Share the sheet with the service account’s client email (Viewer is enough).
 
-## Yearly Changes
-- Update any changed players details in the Google Sheets doc <br />
-  - Email
-  - Name
+## Local setup
 
-## Usage
-- Run weekly after Monday and before Thursday games.
-- GitHub Actions (`.github/workflows/weekly.yml`) is scheduled Thursday 17:00 UTC (11:00 AM CST). See [GitHub Actions](#github-actions).
-- Locally: `dotnet run --project TeamAssigner/TeamAssigner.csproj` from a directory that can resolve `appsettings.json`, `creds.json`, and `quotes.json` beside the built binary (the app sets its working directory to the publish/output folder).
-- Week Override
-  - Scheduled runs leave `AppSettings.WeekOverride` empty.
-  - To rerun a previous week, use **Actions → Weekly team assigner → Run workflow** and set `week_override`, or set `WeekOverride` in a local `appsettings.json`.
+1. Clone the repo and restore/build with .NET 10:
+
+   ```bash
+   git clone https://github.com/salmeister/team-assigner.git
+   cd team-assigner
+   dotnet restore TeamAssigner.sln
+   ```
+
+2. Put the Google service-account JSON next to the app as **`creds.json`**. That filename is gitignored — do not commit it.
+
+3. Copy or edit `TeamAssigner/appsettings.json` (repo copy is placeholders only):
+
+   | Key | Where | What |
+   | --- | --- | --- |
+   | `AppSettings.BaseAPIURL` | ESPN core API | Default is fine |
+   | `AppSettings.ScoresBaseAPIURL` | ESPN site scoreboard | Default is fine |
+   | `AppSettings.SheetID` | Google | Sheet ID from the spreadsheet URL |
+   | `AppSettings.SheetRange` | Google | Usually `Sheet1` |
+   | `AppSettings.KeyFileName` | local file | `creds.json` |
+   | `AppSettings.WeekOverride` | optional | Empty = current week; a number reruns that week |
+   | `AppSettings.QuoteAPIURL` | optional | Unused if you rely on the bundled `quotes.json` |
+   | `EmailSettings.SMTPServer` / `SMTPPort` | SMTP | `smtp.gmail.com` / `587` |
+   | `EmailSettings.FromEmail` | SMTP | From address |
+   | `EmailSettings.Psswd` | SMTP | Gmail **app password**, not your login password |
+
+4. Run from a directory that can see `appsettings.json`, `creds.json`, and `quotes.json` beside the built DLL (the app sets its working directory to the output folder):
+
+   ```bash
+   dotnet run --project TeamAssigner/TeamAssigner.csproj
+   ```
 
 ## GitHub Actions
 
-CI (`.github/workflows/ci.yml`) restores, builds, and publishes **Release** on push/PR to `main` and uploads a `team-assigner` artifact. CI does **not** call Google or send email.
+| Workflow | When | What |
+| --- | --- | --- |
+| **CI** (`.github/workflows/ci.yml`) | push/PR to `main` | Restore, Release build, publish, upload `team-assigner` artifact. No Google, no email. |
+| **Weekly team assigner** (`.github/workflows/weekly.yml`) | Thursday cron + manual | Rebuilds, writes `creds.json` and `appsettings.json` from secrets, runs `dotnet TeamAssigner.dll`. |
 
-The weekly workflow (`.github/workflows/weekly.yml`) rebuilds, writes `creds.json` and a transformed `appsettings.json` from repository secrets, then runs `dotnet TeamAssigner.dll` on `ubuntu-latest` (the app is a portable `Microsoft.NET.Sdk` console, not a Windows-only ASP.NET package).
+### Schedule
 
-### Schedule (UTC vs Central)
+GitHub cron is UTC only (`0 17 * * 4` = Thursday 17:00 UTC = **11:00 AM CST**). During CDT that is 12:00 PM Chicago. The job sets `TZ=America/Chicago` so `DateTime.Now` is Central Time.
 
-GitHub Actions cron is UTC only and does not follow DST:
+### Required Actions secrets
 
-| Chicago clock | UTC |
-|---|---|
-| 11:00 AM CDT | 16:00 UTC |
-| 11:00 AM CST | 17:00 UTC |
+**Settings → Secrets and variables → Actions**. Never commit these.
 
-The weekly cron is `0 17 * * 4` (Thursday 17:00 UTC) to match the old Azure Release **11:00 AM CST**. During CDT that is 12:00 PM Chicago. The job sets `TZ=America/Chicago` so `DateTime.Now` matches Central Time.
+| Secret | Contents |
+| --- | --- |
+| `CREDS_JSON` | Full Google service-account JSON |
+| `APPSETTINGS_SHEET_ID` | Google Sheet ID |
+| `EMAIL_FROM` | SMTP From / Gmail address |
+| `EMAIL_PASSWORD` | Gmail app password |
 
-### Required repository secrets
+Applied at run time (not secrets): `KeyFileName=creds.json`, `SheetRange=Sheet1`, SMTP `smtp.gmail.com:587`. `WeekOverride` is empty unless you pass `week_override` on a manual run.
 
-Create these after merge under **Settings → Secrets and variables → Actions**. Do not commit real values (`creds.json` is gitignored; `appsettings.json` in the repo is placeholders only).
+### Re-run the weekly job
 
-| Secret | Replaces (Azure) | Contents |
-|---|---|---|
-| `CREDS_JSON` | DownloadSecureFile `creds.json` | Full Google service-account JSON file contents |
-| `APPSETTINGS_SHEET_ID` | `AppSettings.SheetID` in variable group `team-assigner-config-prod` | Google Sheet ID |
-| `EMAIL_FROM` | `EmailSettings.FromEmail` | Gmail address used as SMTP From |
-| `EMAIL_PASSWORD` | `EmailSettings.Psswd` | Gmail app password |
+1. Open **Actions → Weekly team assigner → Run workflow**.
+2. Leave `week_override` blank to use the current NFL week, or set it to a number (`1`–`18`) to force that week.
+3. Confirm the run succeeds and the assignment email arrives.
 
-Not stored as secrets (defaults applied at run time):
+Same override locally: set `AppSettings.WeekOverride` in `appsettings.json`.
 
-- `AppSettings.KeyFileName` = `creds.json`
-- `AppSettings.SheetRange` = `Sheet1`
-- `AppSettings.WeekOverride` = empty unless you pass `week_override` on a manual run
-- `EmailSettings.SMTPServer` / `SMTPPort` stay as checked-in `smtp.gmail.com` / `587`
+## ESPN scoreboard (403 / User-Agent / week 1)
 
-### Manual trigger and retiring Azure
+`sports.core.api.espn.com` (season/weeks/teams) is what assignment uses. The **previous-week 33-point blurb** uses `site.api.espn.com` scoreboard, which Akamai often **403s** from GitHub-hosted runner IPs when `HttpClient` sends **no User-Agent**.
 
-1. Add the four secrets above.
-2. Run **Actions → Weekly team assigner → Run workflow** once to validate Google Sheets + email.
-3. Confirm CI is green on `main`.
-4. Disable the Azure Pipelines build (`devops/azure-pipelines.yml`) and the Azure Release (FileTransform@1 is deprecated). Keep that YAML only as a pointer until then.
+`RESTUtil` uses one shared `HttpClient` and always sends a User-Agent (Get and Put), plus `Accept` / `Accept-Language`. If a request still returns 403, it retries a couple of alternate User-Agents (app-style first, then a browser UA).
+
+- **Week 1:** previous-week fetch is skipped (no `week=0` scoreboard call). The assignment email still sends; the last-week/quote section is omitted.
+- **Week 2+:** a scoreboard 403 is **non-fatal**. The job logs a warning, notes that last-week scores were unavailable, and still sends the assignment email.
+
+Quick check that a User-Agent is required (curl’s default UA is *not* empty — use an empty header to mimic GitHub `HttpClient`):
+
+```bash
+SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=2026&seasontype=2&week=1'
+
+# Often 403 — same missing-UA behavior as default HttpClient
+curl -sS -o /dev/null -w "%{http_code}\n" -H "User-Agent:" "$SCOREBOARD"
+
+# Same User-Agent RESTUtil sends first
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  -A "Mozilla/5.0 (compatible; TeamAssigner/1.0; +https://github.com/salmeister/team-assigner)" \
+  -H "Accept: application/json, text/plain, */*" \
+  "$SCOREBOARD"
+```
+
+## Yearly maintenance
+
+- Update names and emails in the Google Sheet before week 1.
+- Keep 16 or 32 players.
+- Confirm GitHub secrets still match the sheet and Gmail app password.
+
+## Quotes
+
+If nobody scored exactly 33 the previous week, the email can include a random line from the bundled `quotes.json` (thousands of quotes; works offline). `QuoteAPIURL` is optional and unused unless you point it at an API.

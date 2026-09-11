@@ -1,68 +1,121 @@
 ﻿namespace TeamAssigner.Services
 {
-    using System;
     using System.Collections.Specialized;
-    using System.Net.Http.Headers;
     using System.Net;
     using System.Text;
 
-    internal class RESTUtil
+    internal static class RESTUtil
     {
-        public static string Get(NameValueCollection headers, string url)
+        // GitHub-hosted HttpClient sends no User-Agent; Akamai on site.api.espn.com often 403s that.
+        // A spoofed Chrome UA can also 403 from some cloud IPs, so we try an app-style UA first
+        // and fall back to a browser UA (and a short product token) on 403.
+        internal const string DefaultUserAgent =
+            "Mozilla/5.0 (compatible; TeamAssigner/1.0; +https://github.com/salmeister/team-assigner)";
+
+        private static readonly string[] UserAgentFallbacks =
+        [
+            DefaultUserAgent,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "TeamAssigner/1.0"
+        ];
+
+        private static readonly HttpClient Client = CreateClient();
+
+        private static HttpClient CreateClient()
         {
-            HttpClientHandler handler = new();
-
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11;
-
-            using HttpClient client = new(handler);
-            client.DefaultRequestHeaders.Accept.Add(new
-            MediaTypeWithQualityHeaderValue("application/json"));
-            if (headers != null)
+            var handler = new SocketsHttpHandler
             {
-                foreach (string header in headers.Keys)
+                AutomaticDecompression = DecompressionMethods.All,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(10)
+            };
+
+            var client = new HttpClient(handler)
+            {
+                Timeout = TimeSpan.FromSeconds(60)
+            };
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", "en-US,en;q=0.9");
+            return client;
+        }
+
+        public static string Get(NameValueCollection? headers, string url)
+        {
+            return Send(HttpMethod.Get, url, headers, contentBody: null);
+        }
+
+        public static string Put(NameValueCollection? headers, string url, string package)
+        {
+            return Send(HttpMethod.Put, url.TrimEnd('/'), headers, contentBody: package);
+        }
+
+        private static string Send(HttpMethod method, string url, NameValueCollection? headers, string? contentBody)
+        {
+            Exception? lastError = null;
+
+            foreach (string userAgent in UserAgentFallbacks)
+            {
+                using var request = new HttpRequestMessage(method, url);
+                request.Headers.TryAddWithoutValidation("User-Agent", userAgent);
+                ApplyHeaders(request, headers);
+                if (contentBody != null)
                 {
-                    client.DefaultRequestHeaders.Add(header, headers[header]);
+                    request.Content = new StringContent(contentBody, Encoding.UTF8, "application/json");
                 }
+
+                using HttpResponseMessage response = Client.Send(request);
+                string body = response.Content.ReadAsStringAsync().Result;
+
+                if (response.IsSuccessStatusCode)
+                {
+                    if (userAgent != UserAgentFallbacks[0])
+                    {
+                        Console.WriteLine($"Request succeeded after User-Agent fallback ({userAgent}) for {url}");
+                    }
+                    return body;
+                }
+
+                lastError = new Exception(
+                    $"{response.RequestMessage?.RequestUri} returned: Status Code \"{response.StatusCode}\" with User-Agent \"{userAgent}\" and Reason \"{Truncate(body)}\"");
+
+                if (response.StatusCode == HttpStatusCode.Forbidden && userAgent != UserAgentFallbacks[^1])
+                {
+                    Console.WriteLine($"Warning: {url} returned 403 with User-Agent '{userAgent}'. Retrying with a different User-Agent.");
+                    continue;
+                }
+
+                throw lastError;
             }
-            var data = client.GetAsync(url).Result;
-            if (data.IsSuccessStatusCode)
+
+            throw lastError ?? new Exception($"{url} failed with no response.");
+        }
+
+        private static void ApplyHeaders(HttpRequestMessage request, NameValueCollection? headers)
+        {
+            if (headers == null)
             {
-                return data.Content.ReadAsStringAsync().Result;
+                return;
             }
-            else
+
+            foreach (string? key in headers.AllKeys)
             {
-                Exception ex = new($"{data.RequestMessage?.RequestUri} returned: Status Code \"{data.StatusCode}\" with Reason \"{data.Content.ReadAsStringAsync().Result}\"");
-                throw ex;
+                if (string.IsNullOrEmpty(key))
+                {
+                    continue;
+                }
+
+                request.Headers.TryAddWithoutValidation(key, headers[key]);
             }
         }
 
-        public static string Put(NameValueCollection headers, string url, string package)
+        private static string Truncate(string? text, int maxLength = 400)
         {
-            HttpClientHandler handler = new();
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
 
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11;
-
-            using var client = new HttpClient(handler);
-            client.BaseAddress = new Uri(url.TrimEnd('/'));
-            client.DefaultRequestHeaders.Accept.Clear();
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            if (headers != null)
-            {
-                foreach (string header in headers.Keys)
-                {
-                    client.DefaultRequestHeaders.Add(header, headers[header]);
-                }
-            }
-            HttpResponseMessage response = client.PutAsync(url.TrimEnd('/'), new StringContent(package, Encoding.UTF8, "application/json")).Result;
-            if (response.IsSuccessStatusCode)
-            {
-                return response.Content.ReadAsStringAsync().Result;
-            }
-            else
-            {
-                Exception ex = new($"{response.RequestMessage.RequestUri} returned: Status Code \"{response.StatusCode}\" with Content \"{response.Content.ReadAsStringAsync().Result}\"");
-                throw ex;
-            }
+            string flattened = string.Join(' ', text.Split(default(char[]), StringSplitOptions.RemoveEmptyEntries));
+            return flattened.Length <= maxLength ? flattened : flattened[..maxLength] + "...";
         }
     }
 }
