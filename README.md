@@ -7,8 +7,8 @@ Weekly NFL “two teams each” email assigner. It reads player names and emails
 1. Looks up the current NFL regular season and week from ESPN.
 2. Reads 16 or 32 players from Google Sheets.
 3. Randomizes two teams per player (or one team each if you have 32), spreading bye teams fairly.
-4. Emails the table to every player.
-5. For week 2+, appends a “who scored 33 last week?” blurb (or a quote if nobody did). Week 1 skips that section — there is no prior regular-season week.
+4. Emails a styled HTML table to every player (Gmail-safe inline styles; bye teams highlighted).
+5. Appends last week’s 33-point note when scores exist. **Week 1** skips the scoreboard (no week 0) but still includes a random quote from `quotes.json`. Later weeks keep the quote when nobody scored 33, or when scores are unavailable.
 
 ## Requirements
 
@@ -70,7 +70,7 @@ Share the sheet with the service account’s client email (Viewer is enough).
 
 | Workflow | When | What |
 | --- | --- | --- |
-| **CI** (`.github/workflows/ci.yml`) | push/PR to `main` | Restore, Release build, publish, upload `team-assigner` artifact. No Google, no email. |
+| **CI** (`.github/workflows/ci.yml`) | push/PR to `main` | Restore, Release build, **test**, publish, upload `team-assigner` artifact. No Google, no email. |
 | **Weekly team assigner** (`.github/workflows/weekly.yml`) | Thursday cron + manual | Rebuilds, writes `creds.json` and `appsettings.json` from secrets, runs `dotnet TeamAssigner.dll`. |
 
 ### Schedule
@@ -104,8 +104,8 @@ Same override locally: set `AppSettings.WeekOverride` in `appsettings.json`.
 
 `RESTUtil` uses one shared `HttpClient` and always sends a User-Agent (Get and Put), plus `Accept` / `Accept-Language`. If a request still returns 403, it retries a couple of alternate User-Agents (app-style first, then a browser UA).
 
-- **Week 1:** previous-week fetch is skipped (no `week=0` scoreboard call). The assignment email still sends; the last-week/quote section is omitted.
-- **Week 2+:** a scoreboard 403 is **non-fatal**. The job logs a warning, notes that last-week scores were unavailable, and still sends the assignment email.
+- **Week 1:** previous-week fetch is skipped (no `week=0` scoreboard call). The assignment email still sends and includes a random quote from `quotes.json`.
+- **Week 2+:** a scoreboard 403 is **non-fatal**. The job logs a warning, notes that last-week scores were unavailable, includes a quote, and still sends the assignment email.
 
 Quick check that a User-Agent is required (curl’s default UA is *not* empty — use an empty header to mimic GitHub `HttpClient`):
 
@@ -130,4 +130,10 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
 
 ## Quotes
 
-If nobody scored exactly 33 the previous week, the email can include a random line from the bundled `quotes.json` (thousands of quotes; works offline). `QuoteAPIURL` is optional and unused unless you point it at an API.
+A random line from the bundled `quotes.json` (thousands of quotes; works offline) is included when:
+
+- It is **week 1** (no prior regular-season week to score), or
+- Previous-week scores could not be fetched, or
+- Week 2+ ran successfully and **no team scored exactly 33**
+
+If a team did score 33, the email congratulates that player instead of showing a quote. `QuoteAPIURL` is optional and unused unless you point it at an API.

@@ -54,9 +54,10 @@
                 Console.WriteLine($"year: {year} week: {week}\n");
                 if (week > 0 && week < 19)
                 {
-                    StringBuilder thisweekSB = Randomize();
-                    StringBuilder lastweekSB = GetPreviousWeekScores(week);
-                    emailService?.SendEmail(String.Join(",", players.Select(p => p.Email)), $"Week {week}", thisweekSB.ToString() + lastweekSB.ToString());
+                    IReadOnlyList<AssignmentRow> assignments = Randomize();
+                    string previousWeekHtml = GetPreviousWeekScores(week);
+                    string emailBody = EmailHtmlBuilder.BuildEmail(week, assignments, previousWeekHtml);
+                    emailService?.SendEmail(String.Join(",", players.Select(p => p.Email)), $"Week {week}", emailBody);
                 }
                 else
                 {
@@ -140,16 +141,18 @@
             }
         }
 
-        private StringBuilder GetPreviousWeekScores(int week)
+        private string GetPreviousWeekScores(int week)
         {
             var sb = new StringBuilder();
 
             // Week 1 (and anything earlier) has no regular-season prior week.
             // Calling the scoreboard with week=0 is invalid and is skipped on purpose.
+            // Still include a quote so week 1 is not a bare assignment table.
             if (week <= 1)
             {
                 Console.WriteLine("Skipping previous-week scoreboard: no regular-season week before week 1.");
-                return sb;
+                AppendRandomQuote(sb);
+                return sb.ToString();
             }
 
             int previousWeek = week - 1;
@@ -174,14 +177,12 @@
                             }
 
                             string displayName = competitor.team?.displayName ?? "a team";
-                            sb.AppendLine("<br>");
-                            sb.AppendLine($"<b>Congratulation to the player who had the {displayName} last week.</b>");
-                            sb.AppendLine("<br>");
+                            string? headline = null;
                             if (competition.headlines is { Count: > 0 } && !string.IsNullOrWhiteSpace(competition.headlines[0].shortLinkText))
                             {
-                                sb.AppendLine($"<i>{competition.headlines[0].shortLinkText}</i>");
-                                sb.AppendLine("<br>");
+                                headline = competition.headlines[0].shortLinkText;
                             }
+                            sb.Append(EmailHtmlBuilder.BuildCongratulations(displayName, headline));
                             Console.WriteLine($"{displayName} had {competitor.score} in week {previousWeek}.");
                         }
                     }
@@ -191,35 +192,31 @@
             {
                 // Sheets + randomization already succeeded; do not abort the weekly email.
                 Console.WriteLine($"Warning: ESPN scoreboard request failed for week {previousWeek}. Assignment email will still be sent. {ex.Message}");
-                sb.AppendLine("<br>");
-                sb.AppendLine("Previous-week scores were unavailable this run.");
-                sb.AppendLine("<br>");
-                return sb;
+                sb.Append(EmailHtmlBuilder.BuildNote("Previous-week scores were unavailable this run."));
+                AppendRandomQuote(sb);
+                return sb.ToString();
             }
 
             if (sb.Length < 1)
             {
-                sb.AppendLine("<br>");
-                sb.AppendLine("No team had 33 points last week.");
-                sb.AppendLine("<br>");
-                sb.AppendLine("<br>");
-                try
-                {
-                    Quote? randomQuote = GetRandomQuoteFromFile();
-                    if (randomQuote != null)
-                    {
-                        sb.Append($"<i>{randomQuote.text}</i>");
-                        sb.AppendLine("<br>");
-                        sb.AppendLine($"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- {randomQuote.author}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Unable to get quote: {ex.Message}");
-                }
+                sb.Append(EmailHtmlBuilder.BuildNote("No team had 33 points last week."));
+                AppendRandomQuote(sb);
             }
 
-            return sb;
+            return sb.ToString();
+        }
+
+        private void AppendRandomQuote(StringBuilder sb)
+        {
+            try
+            {
+                Quote? randomQuote = GetRandomQuoteFromFile();
+                sb.Append(EmailHtmlBuilder.BuildQuoteBlock(randomQuote));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unable to get quote: {ex.Message}");
+            }
         }
 
 
@@ -275,9 +272,9 @@
             return allTeams;
         }
 
-        private StringBuilder Randomize()
+        private List<AssignmentRow> Randomize()
         {
-            StringBuilder sb = new();
+            var rows = new List<AssignmentRow>();
             try
             {
                 var rnd = new Random();
@@ -304,7 +301,6 @@
                         byeMarker -= 16;
                         Console.WriteLine($"Bye Team Marker Set To: {byeMarker}\n");
                     }
-                    sb.AppendLine("<table><tr><th>Player</th><th>Team 1</th><th>Team 2</th></tr>");
                     foreach (var byeTeamName in byeTeams)
                     {
                         byeMarker++;
@@ -314,7 +310,13 @@
                         }
 
                         var player = orderedPlayers?.Where(p => p.ID.Equals(byeMarker)).First();
-                        sb.AppendLine($"<tr><td>{player?.Name}</td><td style='background-color: lightgray;'>{byeTeamName}</td><td>{randomNonByeTeams.Dequeue()}</td></tr>");
+                        rows.Add(new AssignmentRow
+                        {
+                            PlayerName = player?.Name ?? "",
+                            Team1 = byeTeamName,
+                            Team2 = randomNonByeTeams.Dequeue(),
+                            Team1IsBye = true
+                        });
 
                         player.Filled = true;
                     }
@@ -324,7 +326,12 @@
                     {
                         if (!player.Filled)
                         {
-                            sb.AppendLine($"<tr><td>{player.Name}</td><td>{randomNonByeTeams.Dequeue()}</td><td>{randomNonByeTeams.Dequeue()}</td></tr>");
+                            rows.Add(new AssignmentRow
+                            {
+                                PlayerName = player.Name,
+                                Team1 = randomNonByeTeams.Dequeue(),
+                                Team2 = randomNonByeTeams.Dequeue()
+                            });
                         }
                     }
                 }
@@ -335,14 +342,17 @@
                     allTeams.OrderBy(item => rnd.Next()).Distinct().ToList().ForEach(i => randomTeams.Enqueue(i));
                     var randomPlayers = players?.OrderBy(item => rnd.Next());
 
-                    sb.AppendLine("<table><tr><th>Player</th><th>Team 1</th><th>Team 2</th></tr>");
                     foreach (var player in randomPlayers)
                     {
-                        sb.AppendLine($"<tr><td>{player.Name}</td><td>{randomTeams.Dequeue()}</td><td>{randomTeams.Dequeue()}</td></tr>");
+                        rows.Add(new AssignmentRow
+                        {
+                            PlayerName = player.Name,
+                            Team1 = randomTeams.Dequeue(),
+                            Team2 = randomTeams.Dequeue()
+                        });
                     }
                 }
-                sb.AppendLine("</table>");
-                Console.WriteLine(sb.ToString());
+                Console.WriteLine(EmailHtmlBuilder.BuildAssignmentTable(rows));
 
             }
             catch (Exception ex)
@@ -350,7 +360,7 @@
                 Console.WriteLine(ex.Message);
                 Exit($"An error occurred running the app.", true, ex);
             }
-            return sb;
+            return rows;
         }
 
         private Quote? GetRandomQuoteFromFile()
