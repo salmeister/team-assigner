@@ -1,0 +1,97 @@
+name: Weekly team assigner
+
+# Azure Release ran at 11:00 AM America/Chicago. GitHub Actions cron is UTC-only:
+#   11:00 AM CDT (UTC-5) = 16:00 UTC
+#   11:00 AM CST (UTC-6) = 17:00 UTC
+# This schedule uses 17:00 UTC to match the previous Azure "11:00 AM CST" clock time.
+# During CDT that is 12:00 PM Chicago. TZ=America/Chicago is set for DateTime.Now.
+on:
+  schedule:
+    - cron: '0 17 * * 4'
+  workflow_dispatch:
+    inputs:
+      week_override:
+        description: 'Optional NFL week number to rerun (leave empty for current week)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-team-assigner
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TZ: America/Chicago
+      DOTNET_NOLOGO: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore TeamAssigner.sln
+
+      - name: Publish
+        run: >
+          dotnet publish TeamAssigner/TeamAssigner.csproj
+          --configuration Release
+          --output ./publish
+          --no-restore
+          --no-self-contained
+
+      - name: Write Google service-account credentials
+        working-directory: ./publish
+        env:
+          CREDS_JSON: ${{ secrets.CREDS_JSON }}
+        run: |
+          if [ -z "$CREDS_JSON" ]; then
+            echo "Missing repository secret CREDS_JSON (Google service-account JSON)."
+            exit 1
+          fi
+          umask 077
+          printf '%s' "$CREDS_JSON" > creds.json
+
+      - name: Apply appsettings from secrets
+        working-directory: ./publish
+        env:
+          APPSETTINGS_SHEET_ID: ${{ secrets.APPSETTINGS_SHEET_ID }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          WEEK_OVERRIDE: ${{ github.event.inputs.week_override }}
+        run: |
+          missing=0
+          if [ -z "$APPSETTINGS_SHEET_ID" ]; then echo "Missing repository secret APPSETTINGS_SHEET_ID"; missing=1; fi
+          if [ -z "$EMAIL_FROM" ]; then echo "Missing repository secret EMAIL_FROM"; missing=1; fi
+          if [ -z "$EMAIL_PASSWORD" ]; then echo "Missing repository secret EMAIL_PASSWORD"; missing=1; fi
+          if [ "$missing" -ne 0 ]; then exit 1; fi
+
+          jq \
+            --arg sheetId "$APPSETTINGS_SHEET_ID" \
+            --arg fromEmail "$EMAIL_FROM" \
+            --arg psswd "$EMAIL_PASSWORD" \
+            --arg weekOverride "$WEEK_OVERRIDE" \
+            '.AppSettings.SheetID = $sheetId
+             | .AppSettings.KeyFileName = "creds.json"
+             | .AppSettings.SheetRange = "Sheet1"
+             | .AppSettings.WeekOverride = $weekOverride
+             | .EmailSettings.FromEmail = $fromEmail
+             | .EmailSettings.Psswd = $psswd' \
+            appsettings.json > appsettings.json.tmp
+          mv appsettings.json.tmp appsettings.json
+
+      - name: Run TeamAssigner
+        working-directory: ./publish
+        run: dotnet TeamAssigner.dll
