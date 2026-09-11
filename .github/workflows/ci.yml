@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore TeamAssigner.sln
+
+      - name: Build
+        run: dotnet build TeamAssigner.sln --configuration Release --no-restore
+
+      - name: Publish
+        run: >
+          dotnet publish TeamAssigner/TeamAssigner.csproj
+          --configuration Release
+          --output ./publish
+          --no-restore
+          --no-self-contained
+
+      - name: Remove local credentials from publish output
+        run: rm -f ./publish/creds.json
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: team-assigner
+          path: publish/
+          if-no-files-found: error

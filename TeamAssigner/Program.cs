@@ -3,6 +3,9 @@ using Microsoft.Extensions.Configuration;
 using TeamAssigner.Models;
 using TeamAssigner.Services;
 
+// Load appsettings.json, creds.json, and quotes.json from the publish directory
+// (beside TeamAssigner.dll), not from the process's original working directory.
+Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
 var builder = new ConfigurationBuilder().AddJsonFile("appsettings.json", optional: false);
 var config = builder.Build();

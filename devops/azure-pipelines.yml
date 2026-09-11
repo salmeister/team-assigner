@@ -1,3 +1,8 @@
+# Retired: CI and the weekly run now live in GitHub Actions
+# (.github/workflows/ci.yml and .github/workflows/weekly.yml).
+# Keep this file only until those workflows are validated, then disable the
+# Azure Pipelines build and the Azure Release that used FileTransform@1.
+#
 # ASP.NET
 # Build and test ASP.NET projects.
 # Add steps that publish symbols, save build artifacts, deploy, and more:

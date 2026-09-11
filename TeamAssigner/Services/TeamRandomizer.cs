@@ -33,6 +33,7 @@
                 this.players = players?.ToList();
                 this.emailService = emailService;
                 this.adminEmail = adminEmail;
+                this.weekOverride = weekOverride ?? "";
 
             }
             catch (Exception e)
