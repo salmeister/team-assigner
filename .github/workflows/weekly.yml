@@ -1,13 +1,8 @@
 name: Weekly team assigner
 
-# Azure Release ran at 11:00 AM America/Chicago. GitHub Actions cron is UTC-only:
-#   11:00 AM CDT (UTC-5) = 16:00 UTC
-#   11:00 AM CST (UTC-6) = 17:00 UTC
-# This schedule uses 17:00 UTC to match the previous Azure "11:00 AM CST" clock time.
-# During CDT that is 12:00 PM Chicago. TZ=America/Chicago is set for DateTime.Now.
 on:
   schedule:
-    - cron: '0 17 * * 4'
+    - cron: '0 11 * * 4'
   workflow_dispatch:
     inputs:
       week_override:
